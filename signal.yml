@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Send Signal message
         run: |
-          curl "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.d3073803-46f1-4c72-afa5-704320c9b9ef }}&apikey=${{ secrets.560589 }}&text=Guten+Morgen"
+          curl "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=Guten+Morgen"

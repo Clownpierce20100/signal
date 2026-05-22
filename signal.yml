@@ -12,4 +12,5 @@ jobs:
     steps:
       - name: Send Signal message
         run: |
+        DATE=$(date +"%d.%m.%Y")
           curl "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=Guten+Morgen"

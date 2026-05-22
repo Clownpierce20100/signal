@@ -2,7 +2,7 @@ name: Daily Signal Message
 
 on:
   schedule:
-    - cron: '* * * * *'   # jede minute
+    - cron: '0 * * * *'   # jede volle Stunde
   workflow_dispatch:
 
 jobs:

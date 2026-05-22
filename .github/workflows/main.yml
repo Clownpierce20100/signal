@@ -2,15 +2,45 @@ name: Daily Signal Message
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # alle 5 minuten zum testen
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
   send-message:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Send Signal message
+        id: signal
         run: |
-          DATE=$(date +"%d.%m.%Y")
-          curl "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=Guten+Morgen"
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+          MESSAGE="Hallo! Nachricht um $TIMESTAMP"
+          
+          echo "Sending message: $MESSAGE"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=$(echo "$MESSAGE" | sed 's/ /+/g')")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "✅ Message sent successfully"
+            exit 0
+          else
+            echo "❌ Failed to send message. HTTP Code: $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Log result
+        if: always()
+        run: |
+          echo "Workflow completed at $(date)"
+          echo "Job status: ${{ job.status }}"

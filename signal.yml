@@ -2,7 +2,7 @@ name: Daily Signal Message
 
 on:
   schedule:
-    - cron: '* * * * *'   # jede Minute
+    - cron: '0 * * * *'   # jede volle Stunde
   workflow_dispatch:
 
 jobs:
@@ -12,5 +12,5 @@ jobs:
     steps:
       - name: Send Signal message
         run: |
-        DATE=$(date +"%d.%m.%Y")
+          DATE=$(date +"%d.%m.%Y")
           curl "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=Guten+Morgen"

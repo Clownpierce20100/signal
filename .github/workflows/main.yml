@@ -1,6 +1,10 @@
-name: Daily Signal Message
+name: Daily Calendar Signal Message
 on:
-  workflow_dispatch:   # nur noch das, kein schedule mehr
+  workflow_dispatch:   # manuell auslösbar
+  # Optional wieder automatisch laufen lassen, z.B. jeden Morgen um 07:00 UTC:
+  # schedule:
+  #   - cron: '0 7 * * *'
+ 
 jobs:
   send-message:
     runs-on: ubuntu-latest
@@ -8,24 +12,43 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+ 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+ 
+      - name: Install dependencies
+        run: |
+          pip install google-api-python-client google-auth
+ 
+      - name: Get today's calendar events
+        id: events
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+        run: python get_todays_events.py
+ 
       - name: Send Signal message
         id: signal
         run: |
-          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-          MESSAGE="Hallo! Nachricht um $TIMESTAMP"
-          
-          echo "Sending message: $MESSAGE"
-          
+          MESSAGE="${{ steps.events.outputs.message }}"
+ 
+          echo "Sending message:"
+          echo "$MESSAGE"
+ 
+          # Nachricht URL-encodieren (Python statt sed, sicherer bei Umlauten/Sonderzeichen)
+          ENCODED_MESSAGE=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$MESSAGE")
+ 
           RESPONSE=$(curl -s -w "\n%{http_code}" \
-            "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=$(echo "$MESSAGE" | sed 's/ /+/g')")
-          
+            "https://signal.callmebot.com/signal/send.php?phone=${{ secrets.PHONE }}&apikey=${{ secrets.APIKEY }}&text=$ENCODED_MESSAGE")
+ 
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | head -n-1)
-          
+ 
           echo "HTTP Status: $HTTP_CODE"
           echo "Response: $BODY"
-          
+ 
           if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
             echo "✅ Message sent successfully"
             exit 0
@@ -33,9 +56,10 @@ jobs:
             echo "❌ Failed to send message. HTTP Code: $HTTP_CODE"
             exit 1
           fi
-
+ 
       - name: Log result
         if: always()
         run: |
           echo "Workflow completed at $(date)"
           echo "Job status: ${{ job.status }}"
+ 

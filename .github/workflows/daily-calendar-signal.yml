@@ -1,7 +1,9 @@
 
 name: Daily Calendar Signal Message
-on:
-  workflow_dispatch:   # manuell auslösbar
+  on:
+  workflow_dispatch:
+  schedule:
+    - cron: '...' # manuell auslösbar
   # Optional wieder automatisch laufen lassen, z.B. jeden Morgen um 07:00 UTC:
   # schedule:
   #   - cron: '0 7 * * *'

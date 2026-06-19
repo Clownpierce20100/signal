@@ -37,17 +37,22 @@ def get_todays_events(service, calendar_id):
     print(f"[DEBUG] time_min: {time_min}")
     print(f"[DEBUG] time_max: {time_max}")
 
-    events_result = (
-        service.events()
-        .list(
-            calendarId=calendar_id,
-            timeMin=time_min,
-            timeMax=time_max,
-            singleEvents=True,
-            orderBy="startTime",
+    try:
+        events_result = (
+            service.events()
+            .list(
+                calendarId=calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
         )
-        .execute()
-    )
+        print(f"[DEBUG] API-Antwort (roh): {events_result}")
+    except Exception as e:
+        print(f"[DEBUG] FEHLER beim direkten events().list() Aufruf: {type(e).__name__}: {e}")
+        raise
 
     items = events_result.get("items", [])
     print(f"[DEBUG] Anzahl gefundener Events im Zeitfenster: {len(items)}")
@@ -116,6 +121,18 @@ def list_available_calendars(service):
     print("[DEBUG] ============================================================")
 
 
+def check_calendar_directly(service, calendar_id):
+    """DEBUG: Prüft per calendars().get() ob die ID direkt erreichbar ist,
+    unabhaengig von calendarList() (die bei Service Accounts oft leer bleibt)."""
+    print(f"[DEBUG] === Direkter Zugriffstest auf Calendar ID: {calendar_id} ===")
+    try:
+        cal = service.calendars().get(calendarId=calendar_id).execute()
+        print(f"[DEBUG] ERFOLG! Kalender gefunden: {cal.get('summary')} (timeZone: {cal.get('timeZone')})")
+    except Exception as e:
+        print(f"[DEBUG] FEHLGESCHLAGEN: {type(e).__name__}: {e}")
+    print("[DEBUG] ============================================================")
+
+
 def main():
     calendar_id = os.environ["GOOGLE_CALENDAR_ID"]
 
@@ -123,6 +140,7 @@ def main():
     service = build("calendar", "v3", credentials=credentials)
 
     list_available_calendars(service)
+    check_calendar_directly(service, calendar_id)
 
     events = get_todays_events(service, calendar_id)
     message = format_message(events)
@@ -140,5 +158,7 @@ def main():
             f.write("\nEOF\n")
 
 
+if __name__ == "__main__":
+    main()
 if __name__ == "__main__":
     main()

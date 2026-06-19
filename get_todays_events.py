@@ -23,8 +23,7 @@ def get_credentials():
 
 
 def get_todays_events(service, calendar_id):
-    """Holt alle Termine für den heutigen Tag (lokale Zeit)."""
-    # Heute von 00:00 bis 23:59:59 in UTC bestimmen
+    """Holt alle Termine für den heutigen Tag (UTC-Tagesfenster)."""
     now = datetime.datetime.now(datetime.timezone.utc)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + datetime.timedelta(days=1)
@@ -32,58 +31,25 @@ def get_todays_events(service, calendar_id):
     time_min = start_of_day.isoformat()
     time_max = end_of_day.isoformat()
 
-    # DEBUG: zeigen, was genau abgefragt wird
-    print(f"[DEBUG] Calendar ID: {calendar_id}")
-    print(f"[DEBUG] time_min: {time_min}")
-    print(f"[DEBUG] time_max: {time_max}")
-
-    try:
-        events_result = (
-            service.events()
-            .list(
-                calendarId=calendar_id,
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute()
-        )
-        print(f"[DEBUG] API-Antwort (roh): {events_result}")
-    except Exception as e:
-        print(f"[DEBUG] FEHLER beim direkten events().list() Aufruf: {type(e).__name__}: {e}")
-        raise
-
-    items = events_result.get("items", [])
-    print(f"[DEBUG] Anzahl gefundener Events im Zeitfenster: {len(items)}")
-
-    # DEBUG: zusätzlich OHNE engen Zeitfilter abfragen, um zu sehen ob der
-    # Kalender ueberhaupt Events enthaelt (z.B. die naechsten 10)
-    debug_result = (
+    events_result = (
         service.events()
         .list(
             calendarId=calendar_id,
+            timeMin=time_min,
+            timeMax=time_max,
             singleEvents=True,
             orderBy="startTime",
-            timeMin=(now - datetime.timedelta(days=2)).isoformat(),
-            maxResults=10,
         )
         .execute()
     )
-    debug_items = debug_result.get("items", [])
-    print(f"[DEBUG] Events insgesamt im Kalender (naechste 10 ab vorgestern): {len(debug_items)}")
-    for ev in debug_items:
-        start = ev["start"].get("dateTime", ev["start"].get("date"))
-        print(f"[DEBUG]   - {start} | {ev.get('summary', '(kein Titel)')}")
 
-    return items
+    return events_result.get("items", [])
 
 
 def format_event_time(event):
     """Formatiert die Startzeit eines Events als HH:MM oder 'Ganztägig'."""
     start = event["start"].get("dateTime", event["start"].get("date"))
     if "T" in start:
-        # Hat eine Uhrzeit
         dt = datetime.datetime.fromisoformat(start)
         return dt.strftime("%H:%M")
     else:
@@ -91,9 +57,12 @@ def format_event_time(event):
 
 
 def format_message(events):
-    """Baut den Nachrichtentext zusammen."""
+    """Baut den Nachrichtentext zusammen: Begrüßung + Zeitstempel + Termine."""
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     today_str = datetime.datetime.now().strftime("%d.%m.%Y")
-    lines = [f"📅 Termine heute ({today_str}):"]
+
+    lines = [f"Hallo Giuliano! Nachricht um {now_str}", ""]
+    lines.append(f"📅 Termine heute ({today_str}):")
 
     if not events:
         lines.append("Keine Termine heute. 🎉")
@@ -106,41 +75,11 @@ def format_message(events):
     return "\n".join(lines)
 
 
-def list_available_calendars(service):
-    """DEBUG: Listet alle Kalender, auf die der Service Account Zugriff hat."""
-    print("[DEBUG] === Kalender, auf die der Service Account Zugriff hat ===")
-    try:
-        calendar_list = service.calendarList().list().execute()
-        items = calendar_list.get("items", [])
-        if not items:
-            print("[DEBUG] KEINE Kalender gefunden! Der Service Account hat auf gar keinen Kalender Zugriff.")
-        for cal in items:
-            print(f"[DEBUG]   ID: {cal.get('id')} | Name: {cal.get('summary')} | Zugriff: {cal.get('accessRole')}")
-    except Exception as e:
-        print(f"[DEBUG] Fehler beim Abrufen der Kalenderliste: {e}")
-    print("[DEBUG] ============================================================")
-
-
-def check_calendar_directly(service, calendar_id):
-    """DEBUG: Prüft per calendars().get() ob die ID direkt erreichbar ist,
-    unabhaengig von calendarList() (die bei Service Accounts oft leer bleibt)."""
-    print(f"[DEBUG] === Direkter Zugriffstest auf Calendar ID: {calendar_id} ===")
-    try:
-        cal = service.calendars().get(calendarId=calendar_id).execute()
-        print(f"[DEBUG] ERFOLG! Kalender gefunden: {cal.get('summary')} (timeZone: {cal.get('timeZone')})")
-    except Exception as e:
-        print(f"[DEBUG] FEHLGESCHLAGEN: {type(e).__name__}: {e}")
-    print("[DEBUG] ============================================================")
-
-
 def main():
     calendar_id = os.environ["GOOGLE_CALENDAR_ID"]
 
     credentials = get_credentials()
     service = build("calendar", "v3", credentials=credentials)
-
-    list_available_calendars(service)
-    check_calendar_directly(service, calendar_id)
 
     events = get_todays_events(service, calendar_id)
     message = format_message(events)
@@ -152,13 +91,10 @@ def main():
     github_output = os.environ.get("GITHUB_OUTPUT")
     if github_output:
         with open(github_output, "a") as f:
-            # Mehrzeiliger Output braucht Delimiter-Syntax
             f.write("message<<EOF\n")
             f.write(message)
             f.write("\nEOF\n")
 
 
-if __name__ == "__main__":
-    main()
 if __name__ == "__main__":
     main()

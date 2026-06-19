@@ -101,11 +101,28 @@ def format_message(events):
     return "\n".join(lines)
 
 
+def list_available_calendars(service):
+    """DEBUG: Listet alle Kalender, auf die der Service Account Zugriff hat."""
+    print("[DEBUG] === Kalender, auf die der Service Account Zugriff hat ===")
+    try:
+        calendar_list = service.calendarList().list().execute()
+        items = calendar_list.get("items", [])
+        if not items:
+            print("[DEBUG] KEINE Kalender gefunden! Der Service Account hat auf gar keinen Kalender Zugriff.")
+        for cal in items:
+            print(f"[DEBUG]   ID: {cal.get('id')} | Name: {cal.get('summary')} | Zugriff: {cal.get('accessRole')}")
+    except Exception as e:
+        print(f"[DEBUG] Fehler beim Abrufen der Kalenderliste: {e}")
+    print("[DEBUG] ============================================================")
+
+
 def main():
     calendar_id = os.environ["GOOGLE_CALENDAR_ID"]
 
     credentials = get_credentials()
     service = build("calendar", "v3", credentials=credentials)
+
+    list_available_calendars(service)
 
     events = get_todays_events(service, calendar_id)
     message = format_message(events)

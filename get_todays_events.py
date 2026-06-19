@@ -18,7 +18,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 # Falls du umziehst oder einen anderen Ort willst, hier anpassen.
 LATITUDE = 49.4521
 LONGITUDE = 11.0767
-LOCATION_NAME = "Nürnberg"
+LOCATION_NAME = "München"
 
 # WMO Weather Codes -> kurze deutsche Beschreibung + Emoji
 # Quelle: Open-Meteo Doku (WMO Code Tabelle)
